@@ -16,13 +16,37 @@ app.use(cors({
 app.use(express.json());
 
 // MongoDB connection
-mongoose.connect('mongodb+srv://pranjal-wmpsc:9wrSlB9usu6xq0Ht@wmpsc-mongo.jhgdntu.mongodb.net/kbl-database?retryWrites=true&w=majority&appName=wmpsc-mongo', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+// mongoose.connect('mongodb+srv://pranjal-wmpsc:9wrSlB9usu6xq0Ht@wmpsc-mongo.jhgdntu.mongodb.net/kbl-database?retryWrites=true&w=majority&appName=wmpsc-mongo', { useNewUrlParser: true, useUnifiedTopology: true })
+//   .then(() => console.log('Connected to MongoDB'))
+//   .catch(err => console.error('MongoDB connection error:', err));
 
+  // MongoDB connection caching
+let cachedDb = null;
+async function connectToDatabase() {
+  if (cachedDb && cachedDb.connection.readyState === 1) {
+    console.log('Using cached MongoDB connection');
+    return cachedDb;
+  }
+  try {
+    const db = await mongoose.connect('mongodb+srv://pranjal-wmpsc:9wrSlB9usu6xq0Ht@wmpsc-mongo.jhgdntu.mongodb.net/kbl-database?retryWrites=true&w=majority&appName=wmpsc-mongo', {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000 // Reduce timeout for faster error
+    });
+    console.log('MongoDB connected');
+    cachedDb = db;
+    return db;
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    throw err;
+  }
+}
+
+// Connect before handling requests
+app.use(async (req, res, next) => {
+  await connectToDatabase();
+  next();
+});
 // Candidate Schema
 const candidateSchema = new mongoose.Schema({
   name: String,
