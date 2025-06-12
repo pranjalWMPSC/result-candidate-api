@@ -8,7 +8,7 @@ const port = 3000;
 const cors = require('cors');
 
 app.use(cors({
-  origin: 'http://127.0.0.1:5500', // Allow requests from your frontend origin
+  origin: '*', // Allow requests from your frontend origin
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // Specify allowed methods
   allowedHeaders: ['Content-Type'], // Specify allowed headers
 }));
