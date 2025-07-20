@@ -458,35 +458,27 @@ app.post('/api/candidates', async (req, res) => {
 // Bulk candidate upload API with enhanced logging
 app.post('/api/bulk-candidates', async (req, res) => {
   try {
-    console.log('=== Starting Bulk Candidate Upload ===');
+    // Only keep essential logs
     const candidates = req.body.data; // Expecting { data: [...] } from HTML
-    console.log(`Received payload with ${candidates.length} candidates`);
-    console.log('Raw candidate data:', JSON.stringify(candidates, null, 2));
 
     if (!Array.isArray(candidates) || candidates.length === 0) {
-      console.error('Invalid payload: Data is not an array or is empty');
       return res.status(400).json({
         error: 'Invalid data',
         message: 'Request body must contain a non-empty array of candidates in "data" field',
       });
     }
 
-    // Initialize tracking
     const aadharSet = new Set();
     const duplicates = [];
     const validCandidates = [];
     const processedAadhars = [];
 
-    console.log('=== Processing Candidates ===');
     for (const [index, candidate] of candidates.entries()) {
-      console.log(`Processing candidate #${index + 1}:`, {
-        name: candidate.name,
-        aadhar: candidate.aadhar,
-        candidateId: candidate.candidateId,
-        jobRole: candidate['assessments[0].jobRole'],
-        tpName: candidate['assessments[0].trainingPartner.tpName']
-      });
-
+      // Debug: log tpName and location before constructing batchId
+      console.log(
+        `Candidate #${index + 1} tpName:`, candidate.tpName,
+        '| location:', candidate.location
+      );
       // Map CSV fields to schema
       const mappedCandidate = {
         name: candidate.name || '',
@@ -507,8 +499,7 @@ app.post('/api/bulk-candidates', async (req, res) => {
             centerAddress: candidate['assessments[0].trainingPartner.centerAddress'] || 'Online',
             enrollmentDate: candidate['assessments[0].trainingPartner.enrollmentDate'] || '01-01-2025',
           },
-          batchId: `${candidate.tpName} - ${candidate.location}`,
-          // batchId: `${candidate.location} - ${candidate.tpName} - ${new Date().getDate()}-${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][new Date().getMonth()]}-Kbl`,
+          batchId: `${candidate['tpName']} - ${candidate['location']}`,
           schemeName: candidate['assessments[0].schemeName'] || 'pg',
           result: candidate['assessments[0].result'] || 'pending',
           status: candidate['assessments[0].status'] || 'to_be_requested',
@@ -522,16 +513,11 @@ app.post('/api/bulk-candidates', async (req, res) => {
         }],
       };
 
-      console.log(`Mapped candidate #${index + 1}:`, {
-        name: mappedCandidate.name,
-        aadhar: mappedCandidate.aadhar,
-        candidateId: mappedCandidate.candidateId,
-        batchId: mappedCandidate.assessments[0].batchId,
-      });
+      // Log the batchId being uploaded for each candidate
+      console.log(`Uploading candidate #${index + 1} with batchId: ${mappedCandidate.assessments[0].batchId}`);
 
       // Check for missing required fields
       if (!mappedCandidate.candidateId || !mappedCandidate.aadhar) {
-        console.warn(`Candidate #${index + 1} rejected: Missing candidateId or aadhar`);
         duplicates.push({
           candidateId: mappedCandidate.candidateId,
           aadhar: mappedCandidate.aadhar,
@@ -542,7 +528,6 @@ app.post('/api/bulk-candidates', async (req, res) => {
 
       // Check for duplicates in request
       if (aadharSet.has(mappedCandidate.aadhar)) {
-        console.warn(`Candidate #${index + 1} rejected: Duplicate Aadhar in request (Aadhar: ${mappedCandidate.aadhar})`);
         duplicates.push({
           candidateId: mappedCandidate.candidateId,
           aadhar: mappedCandidate.aadhar,
@@ -555,7 +540,6 @@ app.post('/api/bulk-candidates', async (req, res) => {
       // Check for existing candidate in DB
       const existingCandidate = await Candidate.findOne({ candidateId: mappedCandidate.candidateId });
       if (existingCandidate) {
-        console.warn(`Candidate #${index + 1} rejected: Candidate already exists in database (Aadhar: ${mappedCandidate.aadhar})`);
         duplicates.push({
           candidateId: mappedCandidate.candidateId,
           aadhar: mappedCandidate.aadhar,
@@ -565,22 +549,11 @@ app.post('/api/bulk-candidates', async (req, res) => {
         continue;
       }
 
-      console.log(`Candidate #${index + 1} validated successfully (Aadhar: ${mappedCandidate.aadhar})`);
       validCandidates.push(mappedCandidate);
       processedAadhars.push(mappedCandidate.aadhar);
     }
 
-    console.log(`=== Validation Summary ===`);
-    console.log(`Total candidates received: ${candidates.length}`);
-    console.log(`Valid candidates: ${validCandidates.length}`);
-    console.log(`Duplicates or invalid candidates: ${duplicates.length}`);
     if (duplicates.length > 0) {
-      console.log('Duplicate/invalid candidates:', duplicates);
-    }
-
-    // If there are duplicates, return them
-    if (duplicates.length > 0) {
-      console.log('Returning response with duplicates');
       return res.status(400).json({
         error: 'Duplicate or invalid candidates',
         duplicates,
@@ -588,26 +561,16 @@ app.post('/api/bulk-candidates', async (req, res) => {
       });
     }
 
-    // Save valid candidates
-    console.log('=== Saving Candidates to MongoDB ===');
     if (validCandidates.length > 0) {
       const savedCandidates = await Candidate.insertMany(validCandidates, { ordered: false });
-      console.log(`Successfully saved ${savedCandidates.length} candidates`);
-      console.log('Uploaded Aadhar numbers:', savedCandidates.map(c => c.aadhar));
-    } else {
-      console.log('No valid candidates to save');
     }
 
-    console.log('=== Bulk Upload Completed ===');
     return res.status(201).json({
       message: `Successfully uploaded ${validCandidates.length} candidates`,
       count: validCandidates.length,
       uploadedAadhars: validCandidates.map(c => c.aadhar)
     });
   } catch (err) {
-    console.error('=== Bulk Upload Failed ===');
-    console.error('Error in bulk upload:', err);
-    console.error('Error stack:', err.stack);
     return res.status(500).json({
       error: 'Server error',
       message: `Failed to upload candidates: ${err.message}`,
