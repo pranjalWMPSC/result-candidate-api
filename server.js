@@ -9,7 +9,7 @@ const cors = require('cors');
 
 // Enable CORS
 app.use(cors({
-  origin: '*',
+  origin: 'https://zoho-assessment-fe.vercel.app/',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type'],
 }));
@@ -198,9 +198,10 @@ app.get('/api/results/:batchId', async (req, res) => {
 
     // Prepare CSV header configuration
     const csvHeader = [
-      { id: 'S No.', title: 'S No.' },
-      { id: 'STUDENT UNIQUE ID', title: 'STUDENT UNIQUE ID' },
-      { id: 'Name of the Candidate', title: 'Name of the Candidate' },
+  { id: 'S No.', title: 'S No.' },
+  { id: 'STUDENT UNIQUE ID', title: 'STUDENT UNIQUE ID' },
+  { id: 'Name of the Candidate', title: 'Name of the Candidate' },
+  { id: 'TP Name', title: 'TP Name' },
     ];
 
     modules.forEach((module, index) => {
@@ -237,6 +238,7 @@ app.get('/api/results/:batchId', async (req, res) => {
         'S No.': serialNo++,
         'STUDENT UNIQUE ID': candidate.candidateId,
         'Name of the Candidate': candidate.name,
+        'TP Name': (assessment && assessment.trainingPartner && assessment.trainingPartner.tpName) ? assessment.trainingPartner.tpName : '',
       };
 
       let totalTheory = 0;
