@@ -9,7 +9,7 @@ const cors = require('cors');
 
 // Enable CORS
 app.use(cors({
-  origin: 'https://zoho-assessment-fe.vercel.app/',
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type'],
 }));
@@ -497,9 +497,10 @@ app.post('/api/bulk-candidates', async (req, res) => {
             tpName: candidate['tpName'] || '',
             status: candidate['assessments[0].trainingPartner.status'] || 'active',
             tpId: 'WMPSC-' + candidate['tpName'] || 'WMPSC001',
-            centerName: candidate['assessments[0].trainingPartner.centerName'] || 'Online Center',
+            centerName: candidate['assessments[0].trainingPartner.centerName'],
             centerAddress: candidate['assessments[0].trainingPartner.centerAddress'] || 'Online',
             enrollmentDate: candidate['assessments[0].trainingPartner.enrollmentDate'] || '01-01-2025',
+            location: candidate.location || '',
           },
           batchId: `${candidate['tpName']} - ${candidate['location']}`,
           schemeName: candidate['assessments[0].schemeName'] || 'pg',
@@ -514,6 +515,9 @@ app.post('/api/bulk-candidates', async (req, res) => {
           nosWiseMarks: candidate['assessments[0].nosWiseMarks'] || [],
         }],
       };
+
+    // Log the mapped candidate object after formatting
+    console.log('Mapped candidate for upload:', JSON.stringify(mappedCandidate, null, 2));
 
       // Log the batchId being uploaded for each candidate
       console.log(`Uploading candidate #${index + 1} with batchId: ${mappedCandidate.assessments[0].batchId}`);
